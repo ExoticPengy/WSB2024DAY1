@@ -70,8 +70,10 @@ class RegisterViewModel: ViewModel() {
     var step by mutableIntStateOf(1)
     var loading by mutableStateOf(false)
     var doneSaving by mutableStateOf(false)
+    var icHasErrors by mutableStateOf(false)
     var notSaved by mutableStateOf(true)
     var selectedImageUri by mutableStateOf<Uri?>(null)
+
 
     var ic by mutableStateOf("")
     var password by mutableStateOf("")
@@ -83,19 +85,26 @@ class RegisterViewModel: ViewModel() {
     var model by mutableStateOf("")
     var capacity by mutableStateOf("")
     var features by mutableStateOf("")
+    var profileUrl by mutableStateOf("")
 
-//    fun uploadImage(context: Context) {
-//        val contentResolver = context.contentResolver
-//
-//        if (selectedImageUri != null)
-//        contentResolver.openInputStream(selectedImageUri!!) {
-//
-//        }
-//
-//        val imageBytes = null
-//
-//        imageRef.putBytes(imageBytes)
-//    }
+    fun uploadImage(context: Context) {
+        val imageRef = folderRef.child("$userIc.png")
+
+        val contentResolver = context.contentResolver
+
+        var imageBytes by mutableStateOf<ByteArray?>(null)
+
+        if (selectedImageUri != null) {
+            imageBytes = contentResolver.openInputStream(selectedImageUri!!)?.readBytes()
+        }
+
+
+
+        imageRef.putBytes(imageBytes!!)
+            .addOnSuccessListener {
+                 profileUrl = it.storage.downloadUrl.toString()
+            }
+    }
 
     fun uploadDriverDetails(uid: String) {
         if (notSaved) {
@@ -124,4 +133,9 @@ class RegisterViewModel: ViewModel() {
         }
     }
 
+    fun validateIc() {
+        if (ic.length == 12 || ic.length == 0) {
+            icHasErrors = false
+        } else icHasErrors = true
+    }
 }

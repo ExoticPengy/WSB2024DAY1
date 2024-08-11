@@ -1,18 +1,21 @@
 package mobile.wsmb2024.T09
 
 import android.net.Uri
+import android.util.Half.toFloat
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -32,6 +35,7 @@ import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -56,7 +60,8 @@ import coil.compose.AsyncImage
 @Composable
 fun Register(
     registerViewModel: RegisterViewModel = viewModel(),
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    navBack: () -> Unit
 ) {
     val authUiState by authViewModel.authUiState.collectAsState()
     val authState = authUiState.authState
@@ -69,7 +74,7 @@ fun Register(
             "Success" -> {
                 registerViewModel.loading = false
                 Toast.makeText(context, "Account successfully created!", Toast.LENGTH_SHORT).show()
-                registerViewModel.uploadDriverDetails(uid = authViewModel.uid)
+                registerViewModel.uploadDriverDetails(uid = authViewModel.userId)
             }
             "Loading" -> registerViewModel.loading = true
             "Failure" -> {
@@ -81,13 +86,17 @@ fun Register(
 
     Surface(Modifier.fillMaxSize()) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
             modifier = Modifier
         ) {
             if  (registerViewModel.loading) {
                 LoadingDialog()
             }
-            Driver(registerViewModel, authViewModel)
+            if (registerViewModel.step < 4) {
+                Text("Step ${registerViewModel.step} of 3")
+            }
+            Spacer(Modifier.height(40.dp))
+            Driver(registerViewModel, authViewModel, navBack = {navBack()})
         }
     }
 }
@@ -95,7 +104,8 @@ fun Register(
 @Composable
 fun Driver(
     registerViewModel: RegisterViewModel,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    navBack: () -> Unit
 ) {
 
     AnimatedContent(
@@ -113,7 +123,7 @@ fun Driver(
             Confirm(registerViewModel = registerViewModel)
         }
     }
-    
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -126,7 +136,7 @@ fun Driver(
             onClick = {
                 when (registerViewModel.step) {
                 1 -> {
-                    registerViewModel.step = 1
+                    navBack()
                 }
                 2 -> {
                     registerViewModel.step = 1
@@ -150,7 +160,6 @@ fun Driver(
                     1 -> {
                         registerViewModel.step = 2
                     }
-
                     2 -> {
                         registerViewModel.step = 3
                     }
@@ -230,10 +239,11 @@ fun Step1(
             value = registerViewModel.ic,
             onChange = {
                 registerViewModel.ic = it
+                registerViewModel.validateIc()
             },
             label = "IC No.",
             placeholder = "041234141234",
-            validation = {},
+            validation = registerViewModel.icHasErrors,
             keyboardType = KeyboardType.NumberPassword,
             imeAction = ImeAction.Next
         )
@@ -245,7 +255,7 @@ fun Step1(
             },
             label = "Password",
             placeholder = "",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.Password,
             imeAction = ImeAction.Next
         )
@@ -257,7 +267,7 @@ fun Step1(
             },
             label = "Email",
             placeholder = "example@email.com",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.Email,
             imeAction = ImeAction.Done
         )
@@ -280,7 +290,7 @@ fun Step2(
             },
             label = "Name",
             placeholder = "My Name",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Next
         )
@@ -292,7 +302,7 @@ fun Step2(
             },
             label = "Gender",
             placeholder = "Male or Female",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Next
         )
@@ -304,7 +314,7 @@ fun Step2(
             },
             label = "Phone No.",
             placeholder = "60123456789",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.Phone,
             imeAction = ImeAction.Next
         )
@@ -316,7 +326,7 @@ fun Step2(
             },
             label = "Address",
             placeholder = "Walk Street, A place to go, 60000 City State",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Done
         )
@@ -339,7 +349,7 @@ fun Step3(
             },
             label = "Car Model",
             placeholder = "BMW M8",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Next
         )
@@ -351,7 +361,7 @@ fun Step3(
             },
             label = "Sitting Capacity (Passengers)",
             placeholder = "1 - 7",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.NumberPassword,
             imeAction = ImeAction.Next
         )
@@ -363,7 +373,7 @@ fun Step3(
             },
             label = "Special Features",
             placeholder = "Wheelchair accessible, Open roof",
-            validation = {},
+            validation = false,
             keyboardType = KeyboardType.Email,
             imeAction = ImeAction.Done
         )
@@ -435,7 +445,7 @@ fun UserField(
     onChange: (String) -> Unit,
     label: String,
     placeholder: String,
-    validation: () -> Unit,
+    validation: Boolean,
     keyboardType: KeyboardType,
     imeAction: ImeAction
 ) {

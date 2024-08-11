@@ -27,12 +27,20 @@ class AuthViewModel: ViewModel() {
         )
     }
 
-    var uid by mutableStateOf("")
+    var userId by mutableStateOf("")
     var uic by mutableStateOf("")
     var uEmail by mutableStateOf("")
 
     val db = Firebase
     val auth = Firebase.auth
+
+    init {
+        signOut()
+    }
+
+    fun getUid(): String {
+        return auth.currentUser!!.uid
+    }
 
     fun signUp(email: String, password: String) {
         updateUiState("Loading")
@@ -43,7 +51,7 @@ class AuthViewModel: ViewModel() {
 
         auth.createUserWithEmailAndPassword(email, password)
             .addOnSuccessListener {
-                uid = auth.currentUser!!.uid
+                userId = auth.currentUser!!.uid
                 updateUiState("Success")
                 signOut()
             }
@@ -61,7 +69,7 @@ class AuthViewModel: ViewModel() {
 
         auth.signInWithEmailAndPassword(email, password)
             .addOnSuccessListener {
-                uid = auth.currentUser!!.uid
+                userId = auth.currentUser!!.uid
                 updateUiState("Authenticated")
             }
             .addOnFailureListener {
@@ -71,10 +79,11 @@ class AuthViewModel: ViewModel() {
 
     fun signOut() {
         auth.signOut()
+        updateUiState("Unauthenticated")
     }
 
     fun reset() {
-        uid = ""
+        userId = ""
         uic = ""
         uEmail = ""
     }
