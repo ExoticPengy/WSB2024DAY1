@@ -1,6 +1,7 @@
 package mobile.wsmb2024.T09
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -45,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -56,15 +58,25 @@ fun Register(
     registerViewModel: RegisterViewModel = viewModel(),
     authViewModel: AuthViewModel
 ) {
-    val registerUiState by registerViewModel.registerUiState.collectAsState()
-
-    val vehicleDetails = registerUiState.vehicleDetails
-
     val authUiState by authViewModel.authUiState.collectAsState()
     val authState = authUiState.authState
+    val message = authUiState.message
+
+    val context = LocalContext.current
 
     LaunchedEffect(authState) {
-
+        when(authState) {
+            "Success" -> {
+                registerViewModel.loading = false
+                Toast.makeText(context, "Account successfully created!", Toast.LENGTH_SHORT).show()
+                registerViewModel.uploadDriverDetails(uid = authViewModel.uid)
+            }
+            "Loading" -> registerViewModel.loading = true
+            "Failure" -> {
+                registerViewModel.loading = false
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     Surface(Modifier.fillMaxSize()) {
@@ -72,17 +84,19 @@ fun Register(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
         ) {
-            Driver(registerViewModel)
+            if  (registerViewModel.loading) {
+                LoadingDialog()
+            }
+            Driver(registerViewModel, authViewModel)
         }
     }
 }
 
 @Composable
 fun Driver(
-    registerViewModel: RegisterViewModel
+    registerViewModel: RegisterViewModel,
+    authViewModel: AuthViewModel
 ) {
-    val registerUiState by registerViewModel.registerUiState.collectAsState()
-    val userDetails = registerUiState.userDetails
 
     AnimatedContent(
         targetState = registerViewModel.step
@@ -130,7 +144,7 @@ fun Driver(
 
         StepButton(
             registerViewModel = registerViewModel,
-            buttonText = "Next",
+            buttonText = if (registerViewModel.step == 4) "Done" else "Next",
             onClick = {
                 when (registerViewModel.step) {
                     1 -> {
@@ -141,7 +155,25 @@ fun Driver(
                         registerViewModel.step = 3
                     }
                     3 -> {
+                        registerViewModel.updateUiState(
+                            RegisterViewModel.UserDetails(
+                                ic = registerViewModel.ic,
+                                email = registerViewModel.email,
+                                name = registerViewModel.name,
+                                gender = registerViewModel.gender,
+                                phone = registerViewModel.phone,
+                                address = registerViewModel.address
+                            ),
+                            RegisterViewModel.VehicleDetails(
+                                model = registerViewModel.model,
+                                capacity = registerViewModel.capacity.toInt(),
+                                features = registerViewModel.features
+                            )
+                        )
                         registerViewModel.step = 4
+                    }
+                    4 -> {
+                        authViewModel.signUp(registerViewModel.email, registerViewModel.password)
                     }
                 }
             },
@@ -155,9 +187,6 @@ fun Driver(
 fun Step1(
     registerViewModel: RegisterViewModel
 ) {
-    val registerUiState by registerViewModel.registerUiState.collectAsState()
-    val userDetails = registerUiState.userDetails
-    val vehicleDetails = registerUiState.vehicleDetails
 
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -239,9 +268,6 @@ fun Step1(
 fun Step2(
     registerViewModel: RegisterViewModel
 ) {
-    val registerUiState by registerViewModel.registerUiState.collectAsState()
-    val userDetails = registerUiState.userDetails
-    val vehicleDetails = registerUiState.vehicleDetails
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -301,9 +327,6 @@ fun Step2(
 fun Step3(
     registerViewModel: RegisterViewModel
 ) {
-    val registerUiState by registerViewModel.registerUiState.collectAsState()
-    val userDetails = registerUiState.userDetails
-    val vehicleDetails = registerUiState.vehicleDetails
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -326,7 +349,7 @@ fun Step3(
             onChange = {
                 registerViewModel.capacity = it
             },
-            label = "Sitting Capacity (Not including driver)",
+            label = "Sitting Capacity (Passengers)",
             placeholder = "1 - 7",
             validation = {},
             keyboardType = KeyboardType.NumberPassword,
@@ -338,8 +361,8 @@ fun Step3(
             onChange = {
                 registerViewModel.features = it
             },
-            label = "Email",
-            placeholder = "example@email.com",
+            label = "Special Features",
+            placeholder = "Wheelchair accessible, Open roof",
             validation = {},
             keyboardType = KeyboardType.Email,
             imeAction = ImeAction.Done
@@ -379,8 +402,8 @@ fun Confirm(
                     .border(1.dp, Color.Black, RoundedCornerShape(50))
                     .align(Alignment.CenterHorizontally)
             )
-            Text("IC No: ${registerViewModel.ic}")
-            Text("Email: ${registerViewModel.email}")
+            Text("IC No: ${userDetails.ic}")
+            Text("Email: ${userDetails.email}")
 
             Divider(thickness = 1.dp, color =  Color.Black)
             Text(
@@ -388,10 +411,10 @@ fun Confirm(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
             )
-            Text("Name: ${registerViewModel.name}")
-            Text("Gender: ${registerViewModel.gender}")
-            Text("Phone: ${registerViewModel.phone}")
-            Text("Address: ${registerViewModel.address}")
+            Text("Name: ${userDetails.name}")
+            Text("Gender: ${userDetails.gender}")
+            Text("Phone: ${userDetails.phone}")
+            Text("Address: ${userDetails.address}")
 
             Divider(thickness = 1.dp, color =  Color.Black)
             Text(
@@ -399,9 +422,9 @@ fun Confirm(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
             )
-            Text("Car Model: ${registerViewModel.model}")
-            Text("Sitting Capacity: ${registerViewModel.capacity}")
-            Text("Special Features: ${registerViewModel.features}")
+            Text("Car Model: ${vehicleDetails.model}")
+            Text("Sitting Capacity: ${vehicleDetails.capacity}")
+            Text("Special Features: ${vehicleDetails.features}")
         }
     }
 }

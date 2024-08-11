@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Firebase
+import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +37,20 @@ class RegisterViewModel: ViewModel() {
         var features: String = ""
     )
 
+    data class DriverDetails(
+        var uid: String = "",
+        var name: String = "",
+        var email: String = "",
+        var ic: String = "",
+        var gender: String = "",
+        var phone: String = "",
+        var address: String = "",
+        var photoUrl: String = "",
+        var model: String = "",
+        var capacity: Int = 0,
+        var features: String = ""
+    )
+
     private val _registerUiState = MutableStateFlow(RegisterUiState())
     var registerUiState: StateFlow<RegisterUiState> = _registerUiState.asStateFlow()
 
@@ -47,10 +62,15 @@ class RegisterViewModel: ViewModel() {
 
     var userIc by mutableStateOf("")
 
+    val db = Firebase.firestore
+    val driversRef = db.collection("drivers")
     val storageRef = Firebase.storage.reference
     val folderRef = storageRef.child("userProfiles")
 
     var step by mutableIntStateOf(1)
+    var loading by mutableStateOf(false)
+    var doneSaving by mutableStateOf(false)
+    var notSaved by mutableStateOf(true)
     var selectedImageUri by mutableStateOf<Uri?>(null)
 
     var ic by mutableStateOf("")
@@ -77,5 +97,31 @@ class RegisterViewModel: ViewModel() {
 //        imageRef.putBytes(imageBytes)
 //    }
 
+    fun uploadDriverDetails(uid: String) {
+        if (notSaved) {
+            notSaved = false
+            val userDetails = _registerUiState.value.userDetails
+            val vehicleDetails = _registerUiState.value.vehicleDetails
+
+            val driverDetails = DriverDetails(
+                ic = userDetails.ic,
+                email = userDetails.email,
+                name = userDetails.name,
+                gender = userDetails.gender,
+                phone = userDetails.phone,
+                address = userDetails.address,
+                photoUrl = selectedImageUri.toString(),
+                uid = uid,
+                model = vehicleDetails.model,
+                capacity = vehicleDetails.capacity.toInt(),
+                features = vehicleDetails.features
+            )
+
+            driversRef.add(driverDetails)
+                .addOnSuccessListener {
+                    doneSaving = true
+                }
+        }
+    }
 
 }
